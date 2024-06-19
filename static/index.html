@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日20个单词</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #121212;
+            margin: 0;
+            padding: 20px;
+            color: #e0e0e0;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .container {
+            max-width: 500px;
+            width: 100%;
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        h1 {
+            color: #2196f3;
+        }
+
+        .word-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            margin: 20px 0;
+        }
+
+        .word {
+            background: #333;
+            margin: 5px;
+            padding: 10px;
+            border-radius: 4px;
+            font-size: 18px;
+            color: #64b5f6;
+            flex: 0 0 48%;
+            box-sizing: border-box;
+            cursor: pointer;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .word.learned {
+            background: #fbc02d;
+            color: #121212;
+        }
+
+        .word.archived {
+            background: #4caf50;
+            color: #121212;
+        }
+
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .controls p {
+            font-size: 18px;
+            margin: 10px 0;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        .button-container {
+            display: flex;
+            align-items: center;
+        }
+
+        .button-container button {
+            padding: 10px 15px;
+            font-size: 15px;
+            color: #121212;
+            background: #2196f3;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-right: 10px;
+            flex: 1;
+        }
+
+        .button-container button:last-child {
+            background: #757575;
+        }
+
+        .button-container button:hover {
+            background: #1976d2;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>每日20个单词</h1>
+    <div class="controls">
+        <div class="controls-info">
+            <p>已学习单词数: <span id="learned-count">0</span></p>
+            <p>剩余单词数: <span id="remaining-count">0</span></p>
+            <p>归档单词数: <span id="archive-count">0</span></p>
+        </div>
+        <div class="button-container">
+            <button onclick="loadSequentialWords()">顺序学习</button>
+            <button onclick="loadRandomWords()">随机学习</button>
+            <button onclick="resetProgress()" disabled>重置进度</button>
+        </div>
+    </div>
+    <div id="word-list" class="word-list"></div>
+</div>
+
+<script>
+    async function loadSequentialWords() {
+        const response = await fetch('/learn/sequential');
+        const data = await response.json();
+
+        displayWords(data);
+    }
+
+    async function loadRandomWords() {
+        const response = await fetch('/learn/random');
+        const data = await response.json();
+
+        displayWords(data);
+    }
+
+    async function resetProgress() {
+        const response = await fetch('/reset', {
+            method: 'POST'
+        });
+        const data = await response.json();
+
+        document.getElementById('learned-count').textContent = data.learned_count;
+        document.getElementById('remaining-count').textContent = data.remaining_count;
+        document.getElementById('archive-count').textContent = data.archive_count;
+        clearWordList();
+    }
+
+    async function toggleArchive(wordElement, word) {
+        const response = await fetch('/archive', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({word: word})
+        });
+        const data = await response.json();
+
+        if (wordElement.classList.contains('learned')) {
+            wordElement.classList.remove('learned');
+        } else {
+            wordElement.classList.add('learned');
+        }
+
+        wordElement.classList.toggle('archived');
+        document.getElementById('archive-count').textContent = data.archive_count;
+    }
+
+    function displayWords(data) {
+        const wordList = document.getElementById('word-list');
+        wordList.innerHTML = '';
+        data.daily_words.forEach((word) => {
+            const wordElement = document.createElement('div');
+            wordElement.className = 'word';
+            wordElement.textContent = word.trim();
+            wordElement.onclick = () => toggleArchive(wordElement, word);
+            wordList.appendChild(wordElement);
+        });
+
+        document.getElementById('learned-count').textContent = data.learned_count;
+        document.getElementById('remaining-count').textContent = data.remaining_count;
+        document.getElementById('archive-count').textContent = data.archive_count;
+    }
+
+    function clearWordList() {
+        const wordList = document.getElementById('word-list');
+        wordList.innerHTML = '';
+    }
+</script>
+</body>
+</html>
