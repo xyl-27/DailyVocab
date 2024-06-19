@@ -1,5 +1,5 @@
 from flask import Flask, jsonify, request, send_from_directory
-
+import logging
 from flask_cors import CORS
 import json
 import os
@@ -7,9 +7,44 @@ import random
 from pathlib import Path
 
 app = Flask(__name__)
-CORS(app)
 
+CORS(app)
 CURR_DIR = Path(__file__).resolve().parent
+
+
+class ColoredConsoleHandler(logging.StreamHandler):
+    COLORS = {
+        'DEBUG': '\033[0;36m',  # Cyan
+        'INFO': '\033[0m',  # White
+        'WARNING': '\033[0;33m',  # Yellow
+        'ERROR': '\033[0;31m',  # Red
+        'CRITICAL': '\033[0;35m'  # Purple
+    }
+    RESET = '\033[0m'
+
+    def emit(self, record):
+        try:
+            message = self.format(record)
+            self.stream.write(self.COLORS[record.levelname] + message + self.RESET + '\n')
+            self.flush()
+        except Exception:
+            self.handleError(record)
+
+
+# 配置日志记录器
+logger = logging.getLogger(__name__)
+handler = ColoredConsoleHandler()
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
+
+# 示例日志记录
+logger.debug('Debugging information')
+logger.info('Informational message')
+logger.warning('Warning: Program may behave unexpectedly')
+logger.error('Error occurred')
+logger.critical('Critical error! Program cannot continue.')
 
 WORDS_FILE = CURR_DIR / 'data' / 'sorted_words.txt'
 PROGRESS_FILE = CURR_DIR / 'data' / 'progress.json'
@@ -54,6 +89,7 @@ class Learner:
         self.progress = load_progress()
         self.archive = load_archive()
         self.batch_size = BATCH_SIZE
+        self.pointer = 0
 
     def update_progress(self, daily_words):
         remaining_words = self.progress["remaining"]
@@ -69,21 +105,39 @@ class Learner:
         all_words = load_words()
         remaining_words = [word for word in all_words if word not in self.archive]
         self.progress = {"learned": [], "remaining": remaining_words}
+        self.pointer = 0
         save_progress(self.progress)
 
-    def learn_random(self):
+    def generate_words(self, random_order=False):
         available_words = [word for word in self.progress["remaining"] if word not in self.archive]
-        daily_words = random.sample(available_words, min(self.batch_size, len(available_words)))
-        self.update_progress(daily_words)
-        save_progress(self.progress)
+        if random_order:
+            daily_words = random.sample(available_words, min(self.batch_size, len(available_words)))
+        else:
+            daily_words = available_words[self.pointer:self.pointer + self.batch_size]
+            self.pointer += self.batch_size
         return daily_words
 
-    def learn_sequential(self):
-        available_words = [word for word in self.progress["remaining"] if word not in self.archive]
-        daily_words = available_words[:self.batch_size]
-        self.update_progress(daily_words)
+    def toggle_word_status(self, word):
+        word_status = self.get_word_status(word)
+        if word_status == "learned":
+            self.progress["learned"].remove(word)
+            self.archive.append(word)
+        elif word_status == "archived":
+            self.archive.remove(word)
+            self.progress["remaining"].append(word)
+        else:
+            self.progress["remaining"].remove(word)
+            self.progress["learned"].append(word)
         save_progress(self.progress)
-        return daily_words
+        save_archive(self.archive)
+
+    def get_word_status(self, word):
+        if word in self.progress["learned"]:
+            return "learned"
+        elif word in self.archive:
+            return "archived"
+        else:
+            return "remaining"
 
     def archive_word(self, word):
         if word in self.archive:
@@ -101,9 +155,11 @@ class Learner:
 
 learner = Learner()
 
-@app.route('/learn/random', methods=['GET'])
-def learn_random():
-    daily_words = learner.learn_random()
+
+@app.route('/generate/random', methods=['GET'])
+def generate_random():
+    daily_words = learner.generate_words(random_order=True)
+    logger.debug('生成乱序单词')
     return jsonify({
         'daily_words': daily_words,
         'learned_count': len(learner.progress["learned"]),
@@ -111,9 +167,11 @@ def learn_random():
         'archive_count': len(learner.archive)
     })
 
-@app.route('/learn/sequential', methods=['GET'])
-def learn_sequential():
-    daily_words = learner.learn_sequential()
+
+@app.route('/generate/sequential', methods=['GET'])
+def generate_sequential():
+    daily_words = learner.generate_words(random_order=False)
+    logger.debug('生成顺序单词')
     return jsonify({
         'daily_words': daily_words,
         'learned_count': len(learner.progress["learned"]),
@@ -125,6 +183,7 @@ def learn_sequential():
 @app.route('/reset', methods=['POST'])
 def reset():
     learner.reset_progress()
+    logger.debug('学习进度已重置')
     return jsonify({
         'message': '学习进度已重置！',
         'learned_count': len(learner.progress["learned"]),
@@ -133,13 +192,18 @@ def reset():
     })
 
 
-@app.route('/archive', methods=['POST'])
-def archive():
+@app.route('/toggle-status', methods=['POST'])
+def toggle_status():
     data = request.get_json()
     word = data.get("word")
-    learner.archive_word(word)
+    learner.toggle_word_status(word)
+    status = learner.get_word_status(word)
+    logger.debug(f'单词"{word}"状态已切换为{status}')
     return jsonify({
-        'message': f'单词 "{word}" 归档状态已切换！',
+        'message': f'单词 "{word}" 状态已切换！',
+        'status': status,
+        'learned_count': len(learner.progress["learned"]),
+        'remaining_count': len(learner.progress["remaining"]),
         'archive_count': len(learner.archive)
     })
 
@@ -148,6 +212,20 @@ def archive():
 def index():
     return send_from_directory('static', 'index.html')
 
-
+# 初始化函数，用于在应用启动时加载单词列表
+def initialize_app():
+    global learner
+    with app.app_context():
+        # 调用生成随机单词列表的函数或路由
+        daily_words = learner.generate_words(random_order=True)
+        # 构建响应数据
+        response_data = {
+            'daily_words': daily_words,
+            'learned_count': len(learner.progress["learned"]),
+            'remaining_count': len(learner.progress["remaining"]),
+            'archive_count': len(learner.archive)
+        }
+        # 返回 JSON 响应
+        return jsonify(response_data)
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)

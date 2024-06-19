@@ -48,22 +48,18 @@
             transition: background 0.3s, color 0.3s;
         }
 
-        .word.learned {
-            background: #fbc02d;
-            color: #121212;
-        }
-
         .word.archived {
             background: #4caf50;
             color: #121212;
         }
 
+        .word.learned {
+            background-color: rgba(255, 255, 0, 0.8);
+            color: #121212;
+        }
+
         .controls {
             margin: 20px 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
         }
 
         .controls p {
@@ -73,12 +69,7 @@
             margin-right: 10px;
         }
 
-        .button-container {
-            display: flex;
-            align-items: center;
-        }
-
-        .button-container button {
+        .controls button {
             padding: 10px 15px;
             font-size: 15px;
             color: #121212;
@@ -87,14 +78,9 @@
             border-radius: 4px;
             cursor: pointer;
             margin-right: 10px;
-            flex: 1;
         }
 
-        .button-container button:last-child {
-            background: #757575;
-        }
-
-        .button-container button:hover {
+        .controls button:hover {
             background: #1976d2;
         }
     </style>
@@ -103,33 +89,30 @@
 <div class="container">
     <h1>每日20个单词</h1>
     <div class="controls">
-        <div class="controls-info">
-            <p>已学习单词数: <span id="learned-count">0</span></p>
-            <p>剩余单词数: <span id="remaining-count">0</span></p>
-            <p>归档单词数: <span id="archive-count">0</span></p>
-        </div>
-        <div class="button-container">
-            <button onclick="loadSequentialWords()">顺序学习</button>
-            <button onclick="loadRandomWords()">随机学习</button>
-            <button onclick="resetProgress()" disabled>重置进度</button>
-        </div>
+        <button onclick="loadSequentialWords()">顺序学习</button>
+        <button onclick="loadRandomWords()">随机学习</button>
+        <button onclick="resetProgress()">重置进度</button>
+    </div>
+    <div class="controls">
+        <p>已学习单词数: <span id="learned-count">0</span></p>
+        <p>剩余单词数: <span id="remaining-count">0</span></p>
+        <p>归档单词数: <span id="archive-count">0</span></p>
     </div>
     <div id="word-list" class="word-list"></div>
 </div>
 
 <script>
     async function loadSequentialWords() {
-        const response = await fetch('/learn/sequential');
+        const response = await fetch('/generate/sequential');
         const data = await response.json();
-
-        displayWords(data);
+        updateWordList(data);
     }
 
-    async function loadRandomWords() {
-        const response = await fetch('/learn/random');
-        const data = await response.json();
 
-        displayWords(data);
+    async function loadRandomWords() {
+        const response = await fetch('/generate/random');
+        const data = await response.json();
+        updateWordList(data);
     }
 
     async function resetProgress() {
@@ -137,15 +120,12 @@
             method: 'POST'
         });
         const data = await response.json();
-
-        document.getElementById('learned-count').textContent = data.learned_count;
-        document.getElementById('remaining-count').textContent = data.remaining_count;
-        document.getElementById('archive-count').textContent = data.archive_count;
+        updateCounts(data);
         clearWordList();
     }
 
-    async function toggleArchive(wordElement, word) {
-        const response = await fetch('/archive', {
+    async function toggleWordStatus(wordElement, word) {
+        const response = await fetch('/toggle-status', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -154,27 +134,27 @@
         });
         const data = await response.json();
 
-        if (wordElement.classList.contains('learned')) {
-            wordElement.classList.remove('learned');
-        } else {
-            wordElement.classList.add('learned');
-        }
+        wordElement.textContent = word;
+        wordElement.className = `word ${data.status}`;
+        console.log(wordElement)
 
-        wordElement.classList.toggle('archived');
-        document.getElementById('archive-count').textContent = data.archive_count;
+        updateCounts(data);
     }
 
-    function displayWords(data) {
+    async function updateWordList(data) {
         const wordList = document.getElementById('word-list');
         wordList.innerHTML = '';
         data.daily_words.forEach((word) => {
             const wordElement = document.createElement('div');
             wordElement.className = 'word';
             wordElement.textContent = word.trim();
-            wordElement.onclick = () => toggleArchive(wordElement, word);
+            wordElement.onclick = () => toggleWordStatus(wordElement, word);
             wordList.appendChild(wordElement);
         });
+        updateCounts(data);
+    }
 
+    function updateCounts(data) {
         document.getElementById('learned-count').textContent = data.learned_count;
         document.getElementById('remaining-count').textContent = data.remaining_count;
         document.getElementById('archive-count').textContent = data.archive_count;
@@ -184,6 +164,7 @@
         const wordList = document.getElementById('word-list');
         wordList.innerHTML = '';
     }
+    window.onload = loadRandomWords;
 </script>
 </body>
 </html>
