@@ -7,7 +7,11 @@
     <style>
         body {
             font-family: 'Arial', sans-serif;
-            background-color: #121212;
+            /*background-color: #121212;*/
+            background-image: url('image.png'); /* 替换为您的背景图片路径 */
+            background-size: cover; /* 让背景图片覆盖整个页面 */
+            background-repeat: no-repeat; /* 防止背景图片重复 */
+            background-attachment: fixed; /* 固定背景图片，页面滚动时背景图片不动 */
             margin: 0;
             padding: 20px;
             color: #e0e0e0;
@@ -18,7 +22,7 @@
         .container {
             max-width: 500px;
             width: 100%;
-            background: #1e1e1e;
+            background: rgba(30, 30, 30, 0.8);
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
