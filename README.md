@@ -1,4 +1,5 @@
 # DailyVocab
+version: 1.0.0
 
 ## 下载方法
 git clone https://github.com/xyl-27/DailyVocab.git
