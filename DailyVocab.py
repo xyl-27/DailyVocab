@@ -6,10 +6,19 @@ import os
 import random
 from pathlib import Path
 
+
+CURR_DIR = Path(__file__).resolve().parent
+WORDS_FILE = CURR_DIR / 'data' / 'sorted_words.txt'
+PROGRESS_FILE = CURR_DIR / 'data' / 'progress.json'
+ARCHIVE_FILE = CURR_DIR / 'data' / 'archive.json'
+BATCH_SIZE = 20
+
+
+
 app = Flask(__name__)
 
 CORS(app)
-CURR_DIR = Path(__file__).resolve().parent
+
 
 
 class ColoredConsoleHandler(logging.StreamHandler):
@@ -39,17 +48,8 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
-# 示例日志记录
-logger.debug('Debugging information')
-logger.info('Informational message')
-logger.warning('Warning: Program may behave unexpectedly')
-logger.error('Error occurred')
-logger.critical('Critical error! Program cannot continue.')
 
-WORDS_FILE = CURR_DIR / 'data' / 'sorted_words.txt'
-PROGRESS_FILE = CURR_DIR / 'data' / 'progress.json'
-ARCHIVE_FILE = CURR_DIR / 'data' / 'archive.json'
-BATCH_SIZE = 20
+
 
 
 def load_words():
