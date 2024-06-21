@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 CURR_DIR = Path(__file__).resolve().parent
-WORDS_FILE = CURR_DIR / 'data' / 'sorted_words.txt'
+WORDS_FILE = CURR_DIR / 'data' / 'words.txt'
 PROGRESS_FILE = CURR_DIR / 'data' / 'progress.json'
 ARCHIVE_FILE = CURR_DIR / 'data' / 'archive.json'
 BATCH_SIZE = 20
