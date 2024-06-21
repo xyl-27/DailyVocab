@@ -39,5 +39,9 @@ nssm.exe remove DailyVocab
 ## 更换词表
 将新词表命名为words.txt替换data/words.txt
 
+
 ## 重置归档词表
 直接删除/data/archive.json
+
+## 更换背景图片
+将新背景图片命名为image.png替换static/image.png
