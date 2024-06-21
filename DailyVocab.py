@@ -4,53 +4,19 @@ from flask_cors import CORS
 import json
 import os
 import random
-from pathlib import Path
+import sys
 
+CURR_DIR = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.abspath(os.path.dirname(__file__))
 
-CURR_DIR = Path(__file__).resolve().parent
-WORDS_FILE = CURR_DIR / 'data' / 'words.txt'
-PROGRESS_FILE = CURR_DIR / 'data' / 'progress.json'
-ARCHIVE_FILE = CURR_DIR / 'data' / 'archive.json'
+WORDS_FILE = os.path.join(CURR_DIR, 'data', 'words.txt')
+PROGRESS_FILE = os.path.join(CURR_DIR, 'data', 'progress.json')
+ARCHIVE_FILE = os.path.join(CURR_DIR, 'data', 'archive.json')
+STATIC_DIR = os.path.join(CURR_DIR, 'static')
 BATCH_SIZE = 20
-
-
 
 app = Flask(__name__)
 
 CORS(app)
-
-
-
-class ColoredConsoleHandler(logging.StreamHandler):
-    COLORS = {
-        'DEBUG': '\033[0;36m',  # Cyan
-        'INFO': '\033[0m',  # White
-        'WARNING': '\033[0;33m',  # Yellow
-        'ERROR': '\033[0;31m',  # Red
-        'CRITICAL': '\033[0;35m'  # Purple
-    }
-    RESET = '\033[0m'
-
-    def emit(self, record):
-        try:
-            message = self.format(record)
-            self.stream.write(self.COLORS[record.levelname] + message + self.RESET + '\n')
-            self.flush()
-        except Exception:
-            self.handleError(record)
-
-
-# 配置日志记录器
-logger = logging.getLogger(__name__)
-handler = ColoredConsoleHandler()
-formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-logger.setLevel(logging.DEBUG)
-
-
-
-
 
 def load_words():
     with open(WORDS_FILE, 'r', encoding='utf-8') as file:
@@ -81,6 +47,34 @@ def save_progress(progress):
 def save_archive(archive):
     with open(ARCHIVE_FILE, 'w', encoding='utf-8') as file:
         json.dump(archive, file, ensure_ascii=False, indent=4)
+
+
+class ColoredConsoleHandler(logging.StreamHandler):
+    COLORS = {
+        'DEBUG': '\033[0;36m',  # Cyan
+        'INFO': '\033[0m',  # White
+        'WARNING': '\033[0;33m',  # Yellow
+        'ERROR': '\033[0;31m',  # Red
+        'CRITICAL': '\033[0;35m'  # Purple
+    }
+    RESET = '\033[0m'
+
+    def emit(self, record):
+        try:
+            message = self.format(record)
+            self.stream.write(self.COLORS[record.levelname] + message + self.RESET + '\n')
+            self.flush()
+        except Exception:
+            self.handleError(record)
+
+
+# 配置日志记录器
+logger = logging.getLogger(__name__)
+handler = ColoredConsoleHandler()
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.setLevel(logging.DEBUG)
 
 
 class Learner:
@@ -210,22 +204,8 @@ def toggle_status():
 
 @app.route('/')
 def index():
-    return send_from_directory('static', 'index.html')
+    return send_from_directory(STATIC_DIR, 'index.html')
 
-# 初始化函数，用于在应用启动时加载单词列表
-def initialize_app():
-    global learner
-    with app.app_context():
-        # 调用生成随机单词列表的函数或路由
-        daily_words = learner.generate_words(random_order=True)
-        # 构建响应数据
-        response_data = {
-            'daily_words': daily_words,
-            'learned_count': len(learner.progress["learned"]),
-            'remaining_count': len(learner.progress["remaining"]),
-            'archive_count': len(learner.archive)
-        }
-        # 返回 JSON 响应
-        return jsonify(response_data)
+
 if __name__ == '__main__':
     app.run(debug=False)
